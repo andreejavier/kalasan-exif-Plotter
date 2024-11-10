@@ -1,10 +1,8 @@
 <?php
-// db_connection.php
-
 $servername = "localhost";
-$username = "root";
-$password = ""; // or your database password
-$dbname = "landong_db";
+$username = "root"; 
+$password = ""; 
+$dbname = "dev_kalasan_db";
 
 // Create connection
 $conn = new mysqli($servername, $username, $password, $dbname);
