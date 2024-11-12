@@ -1,3 +1,12 @@
+<?php
+session_start();
+if (!isset($_SESSION['user_id'])) {
+    error_log("Session user_id not set. Redirecting to login.");
+    header("Location: index.php");
+    exit();
+}
+?>
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -24,7 +33,7 @@
             </div>
             <div class="sidebar-wrapper">
                 <ul class="nav">
-                    <li class="active">
+                    <li>
                         <a href="dashboard.php">
                             <i class="nc-icon nc-bank"></i>
                             <p>Home</p>
@@ -36,7 +45,7 @@
                             <p>Map</p>
                         </a>
                     </li>
-                    <li>
+                    <li class="active">
                         <a href="./upload-plant.php">
                             <i class="nc-cloud-upload-94"></i>
                             <p>Plant</p>
@@ -52,6 +61,28 @@
             </div>
         </div>
         <!-- Sidebar Ends -->
+                 <!-- Navbar -->
+        <nav class="navbar navbar-expand-lg navbar-absolute fixed-top navbar-transparent">
+        <div class="navbar-wrapper">
+                    <a class="navbar-brand" href="javascript:;">Dashboard & Analytics</a>
+                </div>
+                <div class="collapse navbar-collapse justify-content-end">
+                    <ul class="navbar-nav">
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="profileDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="color: black;">
+                                <i class="nc-icon nc-single-02"></i>
+                                <span><?php echo htmlspecialchars($_SESSION['username']); ?></span>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-right" aria-labelledby="profileDropdown">
+                                <a class="dropdown-item" href="profile.php">View Profile</a>
+                                <a class="dropdown-item" href="settings.php">Settings</a>
+                                <div class="dropdown-divider"></div>
+                                <a class="dropdown-item" href="logout.php">Logout</a>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+        </nav>
 
         <!-- Main Panel Starts -->
         <div class="main-panel">
@@ -154,18 +185,36 @@
             return dms[0] + dms[1] / 60 + dms[2] / 3600;
         }
 
-        // Function to retrieve address via reverse geocoding
-        function getAddress(latitude, longitude) {
-            const url = `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`;
-            fetch(url)
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('locationAddress').value = data.display_name || 'Address not available';
-                });
-        }
+// Function to retrieve address via reverse geocoding
+function getAddress(latitude, longitude) {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&zoom=18`;
+    
+    fetch(url)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error("Network response was not ok");
+            }
+            return response.json();
+        })
+        .then(data => {
+            document.getElementById('locationAddress').value = data.display_name || 'Address not available';
+        })
+        .catch(error => {
+            console.error("Error fetching address:", error);
+            document.getElementById('locationAddress').value = "Unable to retrieve address";
+        });
+}
 
-        // Geolocation API to get current position and then open camera
-        function getGeolocationAndOpenCamera() {
+// Convert DMS to Decimal Degrees for GPS coordinates
+function convertDMSToDD(dms) {
+    const degrees = dms[0] || 0;
+    const minutes = dms[1] || 0;
+    const seconds = dms[2] || 0;
+    return degrees + minutes / 60 + seconds / 3600;
+}
+
+// Geolocation API to get current position and then open camera
+function getGeolocationAndOpenCamera() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(function(position) {
             const latitude = position.coords.latitude;
@@ -196,10 +245,48 @@
             document.getElementById('imagePreview').src = 'https://www.freeiconspng.com/uploads/no-image-icon-6.png';
         }
 
-        // Submit form function (to be implemented)
         function submitForm() {
-            alert("Data submitted!");
+    const form = document.getElementById('plantDataForm');
+    const formData = new FormData(form);
+
+    // Append user_id to the form data
+    formData.append('user_id', <?php echo $_SESSION['user_id']; ?>);
+    
+    // Append image data
+    const imageInput = document.getElementById('imageInputCamera') || document.getElementById('imageInputGallery');
+    if (imageInput && imageInput.files[0]) {
+        formData.append('image', imageInput.files[0]);
+    }
+
+    // Perform AJAX request to save the data
+    fetch('save-plant-data.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.text())
+    .then(result => {
+        alert(result);
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+}
+
+
+
+        function clearForm() {
+            document.getElementById('latitudeInput').value = '';
+            document.getElementById('longitudeInput').value = '';
+            document.getElementById('dateTime').value = '';
+            document.getElementById('locationAddress').value = '';
+            document.getElementById('imagePreview').src = 'https://www.freeiconspng.com/uploads/no-image-icon-6.png';
+            document.getElementById('imageDataURL').value = '';
         }
     </script>
 </body>
+<script src="assets/js/core/jquery.min.js"></script>
+  <script src="assets/js/core/popper.min.js"></script>
+  <script src="assets/js/core/bootstrap.min.js"></script>
+  <script src="assets/js/plugins/perfect-scrollbar.jquery.min.js"></script>
+  <script src="assets/js/paper-dashboard.min.js?v=2.0.1" type="text/javascript"></script>
 </html>

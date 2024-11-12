@@ -24,22 +24,29 @@ $stmt->bind_result($user_id);
 $stmt->fetch();
 $stmt->close();
 
-// Handle tree deletion request
-if (isset($_POST['delete_tree_id'])) {
+// Handle deletion of a tree if delete request is submitted
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['delete_tree_id'])) {
     $tree_id = $_POST['delete_tree_id'];
 
-    // Delete tree record for the current user
-    $delete_query = "DELETE FROM tree_planted WHERE id = ? AND user_id = ?";
-    $stmt = $conn->prepare($delete_query);
-    $stmt->bind_param('ii', $tree_id, $user_id);
-
-    if ($stmt->execute()) {
-        $message = "Tree record deleted successfully.";
-    } else {
-        $message = "Error deleting tree record.";
+    // First, delete related reviews
+    $delete_reviews_query = "DELETE FROM reviews WHERE tree_planted_id = ?";
+    $stmt = $conn->prepare($delete_reviews_query);
+    if ($stmt) {
+        $stmt->bind_param('i', $tree_id);
+        $stmt->execute();
+        $stmt->close();
     }
 
-    $stmt->close();
+    // Then, delete the tree record
+    $delete_tree_query = "DELETE FROM tree_planted WHERE id = ? AND user_id = ?";
+    $stmt = $conn->prepare($delete_tree_query);
+    if ($stmt) {
+        $stmt->bind_param('ii', $tree_id, $user_id);
+        $stmt->execute();
+        $stmt->close();
+    }
+
+    $message = "Tree record and associated reviews deleted successfully.";
 }
 
 // Handle additional image uploads
@@ -134,7 +141,7 @@ $conn->close();
         </div>
         <div class="sidebar-wrapper">
             <ul class="nav">
-                <li class="active">
+                <li>
                     <a href="./dashboard.php">
                         <i class="nc-icon nc-bank"></i>
                         <p>Home</p>
@@ -152,10 +159,10 @@ $conn->close();
                         <p>Plant</p>
                     </a>
                 </li>
-                <li>
+                <li class="active">
                     <a href="./planted_trees.php">
-                        <i class="nc-icon nc-chart-bar-32"></i>
-                        <p>Your Planted</p>
+                        <i class="fa fa-pagelines"></i> 
+                        <p>Your Observations</p>
                     </a>
                 </li>
             </ul>
@@ -166,9 +173,6 @@ $conn->close();
         <!-- Navbar -->
         <nav class="navbar navbar-expand-lg navbar-absolute fixed-top navbar-transparent">
             <div class="container-fluid">
-                <div class="navbar-wrapper">
-                    <a class="navbar-brand" href="javascript:;">Home</a>
-                </div>
                 <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navigation" aria-controls="navigation-index" aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-bar navbar-kebab"></span>
                     <span class="navbar-toggler-bar navbar-kebab"></span>
@@ -192,56 +196,64 @@ $conn->close();
                 </div>
             </div>
         </nav>
-<div class="wrapper">
-    <div class="content">
-        <div class="container-fluid">
-            <div class="main-content">
-                <h3>Your Planted Trees</h3>
-                
-                <?php if (isset($message)): ?>
-                    <div class="alert alert-info"><?php echo htmlspecialchars($message); ?></div>
-                <?php endif; ?>
 
-                <div class="row">
-                    <?php foreach ($trees as $tree): ?>
-                        <div class="col-md-4 tree-card">
-                            <div class="card">
-                                <img src="<?php echo htmlspecialchars($tree['details']['image_path']); ?>" alt="Main Image" class="card-img-top">
-                                <div class="card-body">
-                                    <p class="card-text">Location: <?php echo htmlspecialchars($tree['details']['address']); ?></p>
-                                    <p class="card-text">Date & Time: <?php echo htmlspecialchars($tree['details']['date_time']); ?></p>
+        <div class="content">
+            <div class="container-fluid">
+                <div class="main-content">
+                    <h3>Your Planted Trees</h3>
+                    
+                    <?php if (isset($message)): ?>
+                        <div class="alert alert-info"><?php echo htmlspecialchars($message); ?></div>
+                    <?php endif; ?>
 
-                                    <?php if (!empty($tree['images'])): ?>
-                                        <div class="additional-images">
-                                            <h6>Additional Images:</h6>
-                                            <?php foreach ($tree['images'] as $img): ?>
-                                                <img src="<?php echo htmlspecialchars($img); ?>" alt="Additional Image">
-                                            <?php endforeach; ?>
-                                        </div>
-                                    <?php endif; ?>
+                    <div class="row">
+                        <?php foreach ($trees as $tree): ?>
+                            <div class="col-md-4 tree-card">
+                                <div class="card">
+                                    <img src="<?php echo htmlspecialchars($tree['details']['image_path']); ?>" alt="Main Image" class="card-img-top">
+                                    <div class="card-body">
+                                        <p class="card-text">Location: <?php echo htmlspecialchars($tree['details']['address']); ?></p>
+                                        <p class="card-text">Date & Time: <?php echo htmlspecialchars($tree['details']['date_time']); ?></p>
 
-                                    <form method="POST" action="" enctype="multipart/form-data">
-                                        <input type="hidden" name="tree_id" value="<?php echo htmlspecialchars($tree['details']['id']); ?>">
-                                        <input type="file" name="additional_images[]" multiple>
-                                        <button type="submit" class="btn btn-primary mt-2">Add Images</button>
-                                    </form>
+                                        <?php if (!empty($tree['images'])): ?>
+                                            <div class="additional-images">
+                                                <?php foreach ($tree['images'] as $image): ?>
+                                                    <img src="<?php echo htmlspecialchars($image); ?>" alt="Additional Image">
+                                                <?php endforeach; ?>
+                                            </div>
+                                        <?php endif; ?>
+                                        
+                                        <hr>
+                                        
+                                        <form method="post" enctype="multipart/form-data">
+                                            <input type="hidden" name="tree_id" value="<?php echo htmlspecialchars($tree['details']['id']); ?>">
+                                            <div class="form-group">
+                                                <label for="additional_images">Upload Additional Images:</label>
+                                                <input type="file" name="additional_images[]" multiple class="form-control">
+                                            </div>
+                                            <button type="submit" class="btn btn-primary">Upload</button>
+                                        </form>
 
-                                    <form method="POST" action="">
-                                        <input type="hidden" name="delete_tree_id" value="<?php echo htmlspecialchars($tree['details']['id']); ?>">
-                                        <button type="submit" class="btn btn-danger btn-delete">Delete</button>
-                                    </form>
+                                        <form method="post" onsubmit="return confirm('Are you sure you want to delete this tree record?');">
+                                            <input type="hidden" name="delete_tree_id" value="<?php echo htmlspecialchars($tree['details']['id']); ?>">
+                                            <button type="submit" class="btn btn-delete">Delete</button>
+                                        </form>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    <?php endforeach; ?>
+                        <?php endforeach; ?>
+                    </div>
                 </div>
             </div>
         </div>
+
     </div>
 </div>
 
-<!-- jQuery and Bootstrap JS -->
-<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Core JS Files -->
+<script src="assets/js/core/jquery.min.js"></script>
+<script src="assets/js/core/popper.min.js"></script>
+<script src="assets/js/core/bootstrap.min.js"></script>
+<script src="assets/js/paper-dashboard.min.js?v=2.0.1"></script>
 </body>
 </html>

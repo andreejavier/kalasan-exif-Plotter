@@ -59,13 +59,13 @@ $conn->close();
             </div>
             <div class="sidebar-wrapper">
                 <ul class="nav">
-                    <li class="active">
+                    <li>
                         <a href="./dashboard.php">
                             <i class="nc-icon nc-bank"></i>
                             <p>Home</p>
                         </a>
                     </li>
-                    <li>
+                    <li class="active">
                         <a href="./map.php">
                             <i class="nc-icon nc-pin-3"></i>
                             <p>Maps</p>
@@ -146,7 +146,7 @@ $conn->close();
               </nav>
             </div>
             <div class="col-md-6 text-right">
-              <p>&copy; <script>document.write(new Date().getFullYear())</script> Your Company Name, made with <i class="fa fa-heart heart"></i> by Your Team.</p>
+              <p>&copy; <script>document.write(new Date().getFullYear())</script> made with <i class="fa fa-heart heart"></i> by kalasan Team.</p>
             </div>
           </div>
         </div>
@@ -189,7 +189,7 @@ $conn->close();
 
   // Step 5: Define the custom tree icon
   var treeIcon = L.icon({
-    iconUrl: 'assets/img/tree icon.png',  // Replace with actual path
+    iconUrl: 'assets/img/Tag Icon.png',  // Replace with actual path
     iconSize: [38, 38],  // Size of the icon
     iconAnchor: [19, 38],  // Point of the icon that corresponds to the marker's location
     popupAnchor: [0, -38]  // Point from which the popup should open relative to the iconAnchor

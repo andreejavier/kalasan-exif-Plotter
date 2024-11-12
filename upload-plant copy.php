@@ -1,53 +1,3 @@
-<?php
-session_start();
-
-// Check if the user is logged in; redirect to login if not
-if (!isset($_SESSION['username'])) {
-    header("Location: index.php");
-    exit();
-}
-
-// Include the database connection file
-include 'db_connection.php';
-
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
-}
-
-// Sanitize and fetch current user's username from the session
-$username = htmlspecialchars($_SESSION['username']);
-
-// Prepare a statement to fetch user details safely
-$query = "SELECT * FROM users WHERE username = ?";
-$stmt = $conn->prepare($query);
-
-if ($stmt) {
-    $stmt->bind_param("s", $username);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    if ($result->num_rows > 0) {
-        $user = $result->fetch_assoc();
-        // You can fetch user details like profile picture, email, etc. here if needed.
-    } else {
-        // If user not found, destroy session and redirect to login
-        session_destroy();
-        header("Location: index.php");
-        exit();
-    }
-
-    // Close statement
-    $stmt->close();
-} else {
-    // Handle error if the query fails
-    die("Failed to prepare statement: " . $conn->error);
-}
-
-// Close the database connection if not used elsewhere
-$conn->close();
-?>
-
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -115,7 +65,7 @@ $conn->close();
                             <h5 class="card-title">Upload</h5>
                             <!-- Camera Input -->
                             <input type="file" id="imageInputCamera" class="d-none" accept="image/*" capture="environment" onchange="handleImageInput(this);" />
-                            <button class="btn btn-primary mt-3" onclick="document.getElementById('imageInputCamera').click();">Open Camera</button>
+                            <button class="btn btn-primary mt-3" onclick="getGeolocationAndOpenCamera();">Open Camera</button>
 
                             <!-- Gallery Input -->
                             <input type="file" id="imageInputGallery" class="d-none" accept="image/*" onchange="handleImageInput(this);" />
@@ -172,7 +122,6 @@ $conn->close();
     <script>
         // JavaScript functions for image handling and geolocation
         function handleImageInput(input) {
-            // Load and process image metadata (EXIF data)
             const file = input.files[0];
             if (file) {
                 const reader = new FileReader();
@@ -211,47 +160,46 @@ $conn->close();
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
-                    document.getElementById('locationAddress').value = data.display_name || 'Address not found';
-                })
-                .catch(error => {
-                    console.error('Error fetching address:', error);
-                    document.getElementById('locationAddress').value = 'Error fetching address';
+                    document.getElementById('locationAddress').value = data.display_name || 'Address not available';
                 });
         }
 
-        function submitForm() {
-    const formData = new FormData(document.getElementById('plantDataForm'));
-    
-    // Append the image file
-    const imageInputCamera = document.getElementById('imageInputCamera').files[0];
-    const imageInputGallery = document.getElementById('imageInputGallery').files[0];
-    if (imageInputCamera) {
-        formData.append('image', imageInputCamera);
-    } else if (imageInputGallery) {
-        formData.append('image', imageInputGallery);
-    }
+        // Geolocation API to get current position and then open camera
+        function getGeolocationAndOpenCamera() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(position) {
+            const latitude = position.coords.latitude;
+            const longitude = position.coords.longitude;
+            document.getElementById('latitudeInput').value = latitude;
+            document.getElementById('longitudeInput').value = longitude;
+            getAddress(latitude, longitude);
 
-    fetch('save-plant-data.php', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('Data saved successfully!');
-        } else {
-            alert('Error saving data: ' + data.error);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('An error occurred while saving the data.');
-    });
+            // Open the camera after geolocation
+            document.getElementById('imageInputCamera').click();
+        }, function(error) {
+            console.log("Geolocation error code: " + error.code);
+            console.log("Geolocation error message: " + error.message);
+            alert("Geolocation failed: " + error.message);
+        });
+    } else {
+        alert("Geolocation is not supported by this browser.");
+    }
 }
 
 
+        // Clear form data
+        function clearForm() {
+            document.getElementById('latitudeInput').value = '';
+            document.getElementById('longitudeInput').value = '';
+            document.getElementById('dateTime').value = '';
+            document.getElementById('locationAddress').value = '';
+            document.getElementById('imagePreview').src = 'https://www.freeiconspng.com/uploads/no-image-icon-6.png';
+        }
 
-
+        // Submit form function (to be implemented)
+        function submitForm() {
+            alert("Data submitted!");
+        }
     </script>
 </body>
 </html>

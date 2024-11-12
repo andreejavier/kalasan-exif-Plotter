@@ -1,78 +1,82 @@
 <?php
-session_start();
+// PDO Database Connection
+$host = 'localhost';
+$dbname = 'dev_kalasan_db';
+$user = 'root';
+$pass = '';
 
-// Check if the user is logged in
-if (!isset($_SESSION['username'])) {
-    echo json_encode(['success' => false, 'error' => 'User not logged in']);
+try {
+    $pdo = new PDO("mysql:host=$host;dbname=$dbname", $user, $pass);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e) {
+    echo json_encode(['success' => false, 'message' => 'Connection failed: ' . $e->getMessage()]);
     exit();
 }
 
-// Include the database connection file
-include 'db_connection.php';
-
-// Check if form data is posted
+// Check if the form data is sent
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Get the current user's ID from the session
-    $username = $_SESSION['username'];
+    $latitude = $_POST['lat'] ?? null;
+    $longitude = $_POST['lon'] ?? null;
+    $date = $_POST['date'] ?? null;
+    $address = $_POST['address'] ?? null;
+    $userId = $_POST['user_id'] ?? null;
 
-    // Fetch user ID based on username
-    $stmt = $conn->prepare("SELECT id FROM users WHERE username = ?");
-    $stmt->bind_param("s", $username);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $user = $result->fetch_assoc();
-
-    // Check if user exists
-    if ($user) {
-        $user_id = $user['id'];
-    } else {
-        echo json_encode(['success' => false, 'error' => 'User not found']);
+    // Validate required fields
+    if (!$userId) {
+        echo json_encode(['success' => false, 'message' => 'User ID is required']);
+        exit();
+    }
+    if (!$latitude || !$longitude || !$date || !$address) {
+        echo json_encode(['success' => false, 'message' => 'Required fields are missing']);
         exit();
     }
 
-    $stmt->close();
-
-    // Get other form inputs
-    $latitude = $_POST['lat'];
-    $longitude = $_POST['lon'];
-    $date_time = $_POST['date'];
-    $address = $_POST['address'];
-
     // Handle image upload
-    $imagePath = '';
+    $imageFilePath = null;
     if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
         $imageTmpPath = $_FILES['image']['tmp_name'];
         $imageName = $_FILES['image']['name'];
-        $imagePath = 'uploads/' . uniqid() . '-' . basename($imageName);
+        $uploadDir = __DIR__ . '/uploads/'; // Absolute path to the uploads directory
 
-        // Move uploaded file to the 'uploads' directory
-        if (!move_uploaded_file($imageTmpPath, $imagePath)) {
-            echo json_encode(['success' => false, 'error' => 'Image upload failed']);
+        // Create the uploads directory if it doesn't exist
+        if (!is_dir($uploadDir)) {
+            if (!mkdir($uploadDir, 0777, true)) {
+                echo json_encode(['success' => false, 'message' => 'Failed to create uploads directory']);
+                exit();
+            }
+        }
+
+        // Generate a unique file name for the image
+        $imageFilePath = 'uploads/' . uniqid() . '-' . basename($imageName);
+        $absoluteFilePath = $uploadDir . basename($imageFilePath);
+
+        // Move uploaded file to the uploads directory
+        if (!move_uploaded_file($imageTmpPath, $absoluteFilePath)) {
+            echo json_encode(['success' => false, 'message' => 'Failed to save image']);
             exit();
         }
     }
 
-    // Prepare EXIF data
-    $exif_data = json_encode([
-        'latitude' => $latitude,
-        'longitude' => $longitude,
-        'date_time' => $date_time,
-        'address' => $address
-    ]);
+    // Insert data into the database, including the user ID and image path
+    try {
+        $stmt = $pdo->prepare("INSERT INTO tree_planted (user_id, latitude, longitude, date_time, address, image_path) 
+                               VALUES (:user_id, :lat, :lon, :date, :address, :image_path)");
+        $stmt->bindParam(':user_id', $userId);
+        $stmt->bindParam(':lat', $latitude);
+        $stmt->bindParam(':lon', $longitude);
+        $stmt->bindParam(':date', $date);
+        $stmt->bindParam(':address', $address);
+        $stmt->bindParam(':image_path', $imageFilePath);
 
-    // Insert into tree_records table
-    $stmt = $conn->prepare("INSERT INTO tree_planted (user_id, latitude, longitude, date_time, address, image_path, exif_data) VALUES (?, ?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param("iddssss", $user_id, $latitude, $longitude, $date_time, $address, $imagePath, $exif_data);
-
-    if ($stmt->execute()) {
-        echo json_encode(['success' => true]);
-    } else {
-        echo json_encode(['success' => false, 'error' => 'Database insert failed']);
+        if ($stmt->execute()) {
+            echo json_encode(['success' => true, 'message' => 'Data saved successfully']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Failed to save data']);
+        }
+    } catch (PDOException $e) {
+        echo json_encode(['success' => false, 'message' => 'Error saving data: ' . $e->getMessage()]);
     }
-
-    $stmt->close();
+} else {
+    echo json_encode(['success' => false, 'message' => 'Invalid request']);
 }
-
-// Close the database connection
-$conn->close();
 ?>

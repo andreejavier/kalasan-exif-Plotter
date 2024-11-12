@@ -1,5 +1,4 @@
 <?php
-// get_plant_data.php
 header('Content-Type: application/json');
 
 $servername = "localhost";

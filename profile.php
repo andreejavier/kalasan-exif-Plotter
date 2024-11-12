@@ -1,5 +1,4 @@
 <?php 
-// dashboard.php
 
 session_start();
 
@@ -14,12 +13,20 @@ include 'db_connection.php';
 
 // Fetch user details from the database
 $username = $_SESSION['username'];
-$stmt = $conn->prepare("SELECT email, profile_picture FROM users WHERE username = ?");
+$stmt = $conn->prepare("SELECT email, profile_picture, id FROM users WHERE username = ?");
 $stmt->bind_param("s", $username);
 $stmt->execute();
-$stmt->bind_result($email, $profilePicture);
+$stmt->bind_result($email, $profilePicture, $userId);
 $stmt->fetch();
 $stmt->close();
+
+// Fetch the count of trees planted by this user
+$countStmt = $conn->prepare("SELECT COUNT(*) FROM tree_planted WHERE user_id = ?");
+$countStmt->bind_param("i", $userId);
+$countStmt->execute();
+$countStmt->bind_result($treeCount);
+$countStmt->fetch();
+$countStmt->close();
 
 $conn->close();
 ?>
@@ -42,16 +49,19 @@ $conn->close();
 </head>
 
 <body>
-    <div class="wrapper ">
+<div class="wrapper">
         <div class="sidebar" data-color="white" data-active-color="danger">
             <div class="logo">
-                <a href="javascript:;" class="simple-text logo-normal">
-                    Kalasan
+                <a href="./profile.php" class="simple-text logo-mini">
+                    <div class="logo-image-small">
+                        <img src="assets/img/location icon.jpg" alt="Logo">
+                    </div>
                 </a>
+                <a href="#" class="simple-text logo-normal">Kalasan</a>
             </div>
             <div class="sidebar-wrapper">
                 <ul class="nav">
-                    <li>
+                    <li class="active">
                         <a href="./dashboard.php">
                             <i class="nc-icon nc-bank"></i>
                             <p>Home</p>
@@ -60,31 +70,36 @@ $conn->close();
                     <li>
                         <a href="./map.php">
                             <i class="nc-icon nc-pin-3"></i>
-                            <p>Map</p>
+                            <p>Maps</p>
                         </a>
                     </li>
                     <li>
-                        <a href="./stats.html">
-                            <i class="nc-icon nc-chart-pie-35"></i>
-                            <p>Stats</p>
+                        <a href="./upload-plant.php">
+                            <i class="nc-cloud-upload-94"></i>
+                            <p>Plant</p>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="./planted_trees.php">
+                            <i class="nc-icon nc-chart-bar-32"></i>
+                            <p>Your Planted</p>
                         </a>
                     </li>
                 </ul>
             </div>
         </div>
-
         <div class="main-panel" style="height: 100vh;">
             <nav class="navbar navbar-expand-lg navbar-absolute fixed-top navbar-transparent">
                 <div class="container-fluid">
                     <div class="navbar-wrapper">
-                        <a class="navbar-brand" href="javascript:;">Dashboard</a>
+                        <a class="navbar-brand" href="javascript:;">Profile</a>
                     </div>
                 </div>
             </nav>
             <div class="content">
                 <div class="row">
                     <div class="col-md-12">
-                        <h3 class="description">Your Profile</h3>
+                        <h3 class="description">Profile</h3>
 
                         <!-- Display profile picture and user details -->
                         <div class="profile-section">
@@ -96,6 +111,7 @@ $conn->close();
 
                             <p><strong>Username:</strong> <?php echo htmlspecialchars($username); ?></p>
                             <p><strong>Email:</strong> <?php echo htmlspecialchars($email); ?></p>
+                            <p><strong>Observations:</strong> <?php echo htmlspecialchars($treeCount); ?></p>
                             
                             <!-- Add Edit Profile button -->
                             <a href="edit_profile.php" class="btn btn-primary">Edit Profile</a>
@@ -108,14 +124,14 @@ $conn->close();
                     <div class="row">
                         <nav class="footer-nav">
                             <ul>
-                                <li><a href="https://www.creative-tim.com" target="_blank">Creative Tim</a></li>
-                                <li><a href="https://www.creative-tim.com/blog" target="_blank">Blog</a></li>
-                                <li><a href="https://www.creative-tim.com/license" target="_blank">Licenses</a></li>
+                                <li><a href="#" target="_blank">Kalasan Team</a></li>
+                                <li><a href="#" target="_blank">Blog</a></li>
+                                <li><a href="#" target="_blank">Licenses</a></li>
                             </ul>
                         </nav>
                         <div class="credits ml-auto">
                             <span class="copyright">
-                                © 2024, made with <i class="fa fa-heart heart"></i> by Creative Tim
+                                © 2024, made with <i class="fa fa-heart heart"></i> by Kalasan Team
                             </span>
                         </div>
                     </div>

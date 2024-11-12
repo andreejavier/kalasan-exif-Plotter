@@ -1,65 +1,74 @@
 <?php
 session_start();
 if (!isset($_SESSION['user_id'])) {
-    header("Location: inde x.php");
+    header("Location: index.php");
     exit();
 }
+
+// Database connection details
+$servername = "localhost";
+$username = "root";
+$password = "";
+$dbname = "dev_kalasan_db";
+
+// Create a connection
+$conn = new mysqli($servername, $username, $password, $dbname);
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Fetch data for dashboard stats
+$sql = "SELECT COUNT(*) AS contributor_count FROM users WHERE id IS NOT NULL";
+$result = $conn->query($sql);
+$contributor_count = ($result->num_rows > 0) ? $result->fetch_assoc()['contributor_count'] : 0;
+
+$sql = "SELECT COUNT(*) AS planted_tree FROM tree_planted WHERE id IS NOT NULL";
+$result = $conn->query($sql);
+$planted_tree = ($result->num_rows > 0) ? $result->fetch_assoc()['planted_tree'] : 0;
+
+// Fetch data for the chart (trees by category)
+$sql = "SELECT category, COUNT(*) AS count FROM tree_planted GROUP BY category";
+$result = $conn->query($sql);
+$chartData = [];
+if ($result->num_rows > 0) {
+    while ($row = $result->fetch_assoc()) {
+        $chartData[] = $row;
+    }
+}
+
+// Fetch data for the species breakdown chart
+$sql = "SELECT species_name, COUNT(*) AS count FROM tree_planted GROUP BY species_name";
+$result = $conn->query($sql);
+$speciesData = [];
+if ($result->num_rows > 0) {
+    while ($row = $result->fetch_assoc()) {
+        $speciesData[] = $row;
+    }
+}
+
+$conn->close();
 ?>
-
-          <!-- PHP Code for Counting Contributors and Planted Trees -->
-          <?php
-            // Database connection details
-            $servername = "localhost"; 
-            $username = "root";  
-            $password = "";         
-            $dbname = "dev_kalasan_db"; 
-
-            // Create a connection
-            $conn = new mysqli($servername, $username, $password, $dbname);
-
-            // Check the connection
-            if ($conn->connect_error) {
-              die("Connection failed: " . $conn->connect_error);
-            }
-
-            // SQL query to count users with id (Contributors)
-            $sql = "SELECT COUNT(*) AS contributor_count FROM users WHERE id IS NOT NULL";
-            $result = $conn->query($sql);
-            $contributor_count = 0;
-            if ($result->num_rows > 0) {
-              $row = $result->fetch_assoc();
-              $contributor_count = $row['contributor_count'];
-            }
-
-            // SQL query to count trees planted
-            $sql = "SELECT COUNT(*) AS planted_tree FROM tree_planted WHERE id IS NOT NULL";
-            $result = $conn->query($sql);
-            $planted_tree = 0;
-            if ($result->num_rows > 0) {
-              $row = $result->fetch_assoc();
-              $planted_tree = $row['planted_tree'];
-            }
-
-            // Close the connection
-            $conn->close();
-          ?>
-
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kalasan Dashboard & Analytics</title>
-  <!-- External CSS -->
-  <link href="https://fonts.googleapis.com/css?family=Montserrat:400,700,200" rel="stylesheet" />
-  <link href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css" rel="stylesheet">
-  <link href="assets/css/bootstrap.min.css" rel="stylesheet">
-  <link href="assets/css/paper-dashboard.css" rel="stylesheet">
-  <link href="assets/css/custom-dashboard.css" rel="stylesheet">
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalasan Dashboard & Analytics</title>
+    <link href="https://fonts.googleapis.com/css?family=Montserrat:400,700,200" rel="stylesheet" />
+    <link href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css" rel="stylesheet">
+    <link href="assets/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/css/paper-dashboard.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .wrapper { display: flex; height: 100vh; }
+        .sidebar { width: 260px; position: fixed; height: 100%; background-color: #f8f9fa; }
+        .main-panel { margin-left: 250px; width: 100%; padding-top: 80px; } /* Add top padding for fixed navbar */
+        .navbar-transparent { background-color: rgba(255, 255, 255, 0.8) !important; }
+        .card-stats { margin-bottom: 20px; } /* Add space between cards */
+    </style>
 </head>
+
 <body>
 <div class="wrapper">
         <div class="sidebar" data-color="white" data-active-color="danger">
@@ -87,7 +96,7 @@ if (!isset($_SESSION['user_id'])) {
                     </li>
                     <li>
                         <a href="./upload-plant.php">
-                            <i class="nc-cloud-upload-94"></i>
+                            <i class="nc-icon nc-cloud-upload-94"></i>
                             <p>Plant</p>
                         </a>
                     </li>
@@ -100,207 +109,154 @@ if (!isset($_SESSION['user_id'])) {
                 </ul>
             </div>
         </div>
+    
+    <!-- Main Panel -->
+    <div class="main-panel">
+        <!-- Navbar -->
+        <nav class="navbar navbar-expand-lg navbar-absolute fixed-top navbar-transparent">
+        <div class="navbar-wrapper">
+                    <a class="navbar-brand" href="javascript:;">Dashboard & Analytics</a>
+                </div>
+                <div class="collapse navbar-collapse justify-content-end">
+                    <ul class="navbar-nav">
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="profileDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="color: black;">
+                                <i class="nc-icon nc-single-02"></i>
+                                <span><?php echo htmlspecialchars($_SESSION['username']); ?></span>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-right" aria-labelledby="profileDropdown">
+                                <a class="dropdown-item" href="profile.php">View Profile</a>
+                                <a class="dropdown-item" href="settings.php">Settings</a>
+                                <div class="dropdown-divider"></div>
+                                <a class="dropdown-item" href="logout.php">Logout</a>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+        </nav>
 
-
-     <!-- Main Panel -->
-     <div class="main-panel">
-            <!-- Navbar -->
-            <nav class="navbar navbar-expand-lg navbar-absolute fixed-top navbar-transparent">
-                <div class="container-fluid">
-                    <div class="navbar-wrapper">
-                        <a class="navbar-brand" href="javascript:;">Home</a>
-                    </div>
-                    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navigation" aria-controls="navigation-index" aria-expanded="false" aria-label="Toggle navigation">
-                        <span class="navbar-toggler-bar navbar-kebab"></span>
-                        <span class="navbar-toggler-bar navbar-kebab"></span>
-                        <span class="navbar-toggler-bar navbar-kebab"></span>
-                    </button>
-                    <div class="collapse navbar-collapse justify-content-end" id="navigation">
-                        <ul class="navbar-nav">
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" id="profileDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                    <i class="nc-icon nc-single-02"></i>
-                                    <span><?php echo $_SESSION['username']; ?></span>
-                                </a>
-                                <div class="dropdown-menu dropdown-menu-right" aria-labelledby="profileDropdown">
-                                    <a class="dropdown-item" href="profile.php">View Profile</a>
-                                    <a class="dropdown-item" href="settings.php">Settings</a>
-                                    <div class="dropdown-divider"></div>
-                                    <a class="dropdown-item" href="logout.php">Logout</a>
+        <!-- Main content -->
+        <div class=" container-fluid">
+            <div class="row">
+                <!-- Dashboard Card for Contributors -->
+                <div class="col-lg-3 col-md-6 col-sm-12">
+                    <div class="card card-stats">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-5 col-md-4">
+                                    <div class="icon-big text-center icon-warning">
+                                        <i class="nc-icon nc-globe text-warning"></i>
+                                    </div>
                                 </div>
-                            </li>
-                        </ul>
+                                <div class="col-7 col-md-8">
+                                    <p class="card-category">Contributors</p>
+                                    <p class="card-title"><?php echo $contributor_count; ?></p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </nav>
 
+                <!-- Dashboard Card for Planted Trees -->
+                <div class="col-lg-3 col-md-6 col-sm-12">
+                    <div class="card card-stats">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-5 col-md-4">
+                                    <div class="icon-big text-center icon-success">
+                                        <i class="nc-icon nc-planet text-success"></i>
+                                    </div>
+                                </div>
+                                <div class="col-7 col-md-8">
+                                    <p class="card-category">Planted Trees</p>
+                                    <p class="card-title"><?php echo $planted_tree; ?></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-      <!-- Main content -->
-      <div class="content">
-        <div class="row">
+            <!-- Chart for Tree Planting Analytics by Category -->
+            <h3>Tree Planting Analytics by Category</h3>
+            <canvas id="categoryChart" width="400" height="200"></canvas>
 
-         <!-- Dashboard Card for Contributors -->
-<div class="col-lg-3 col-md-6 col-sm-6">
-  <div class="card card-stats">
-    <div class="card-body">
-      <div class="row">
-        <div class="col-5 col-md-4">
-          <div class="icon-big text-center icon-warning">
-            <i class="nc-icon nc-globe text-warning"></i>
-          </div>
+            <!-- Chart for Tree Planting Analytics by Species -->
+            <h3>Tree Planting Analytics by Species</h3>
+            <canvas id="speciesChart" width="400" height="200"></canvas>
         </div>
-        <div class="col-7 col-md-8">
-          <p class="card-category">Contributors</p>
-          <p class="card-title"><?php echo $contributor_count; ?></p>
-        </div>
-      </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="container-fluid">
+                <div class="text-center">© 2024, Kalasan Dashboard by Team</div>
+            </div>
+        </footer>
     </div>
-    <div class="button-footer">
-      <button class="btn btn-primary" onclick="window.location.href='contributors-datatable.php';">
-        <i class="fa fa-eye"></i> View List
-      </button>
-    </div>
-  </div>
 </div>
 
-          <!-- Dashboard Card for Planted Trees -->
-          <div class="col-lg-3 col-md-6 col-sm-6">
-            <div class="card card-stats">
-              <div class="card-body">
-                <div class="row">
-                  <div class="col-5 col-md-4">
-                    <div class="icon-big text-center icon-warning">
-                      <i class="nc-icon nc-planet text-success"></i>
-                    </div>
-                  </div>
-                  <div class="col-7 col-md-8">
-                    <p class="card-category">Planted Trees</p>
-                    <p class="card-title"><?php echo $planted_tree; ?></p>
-                  </div>
-                </div>
-              </div>
-              <div class="button-footer">
-                   <button class="btn btn-primary" onclick="window.location.href='validate.php';">
-                       <i class="fa fa-eye"></i> View Trees
-                   </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="content">
-        <div class="row">
-          <div class="col-md-12">
-            <h3 class="description">Analytics Overview</h3>
-
-            <!-- Chart Container -->
-            <div class="card">
-              <div class="card-header">
-                <h5 class="card-title">Tree Species Data</h5>
-              </div>
-              <div class="card-body">
-                <canvas id="treeSpeciesChart" width="400" height="150"></canvas>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-header">
-                <h5 class="card-title">Uploads Over Time</h5>
-              </div>
-              <div class="card-body">
-                <canvas id="uploadsChart" width="400" height="150"></canvas>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </div>
-      <footer class="footer">
-        <div class="container-fluid">
-          <div class="row">
-            <div class="credits ml-auto">
-              <span class="copyright">
-                © 2024, Kalasan Project
-              </span>
-            </div>
-          </div>
-        </div>
-      </footer>
-    </div>
-  </div>
-
-  <!-- JavaScript to render charts -->
+<!-- JS Scripts -->
+<script src="assets/js/jquery.min.js"></script>
+<script src="assets/js/popper.min.js"></script>
+<script src="assets/js/bootstrap.min.js"></script>
+<script src="assets/js/bootstrap.bundle.min.js"></script>
 <script>
-   // Fetch data from the backend
-   fetch('config/fetch_data.php')
-    .then(response => response.json())
-    .then(data => {
-      // Extract species data
-      const speciesLabels = data.speciesData.map(item => item.address);
-      const speciesCounts = data.speciesData.map(item => item.count);
+    // Prepare data for the category chart
+    const chartData = <?php echo json_encode($chartData); ?>;
+    const categories = chartData.map(data => data.category);
+    const categoryCounts = chartData.map(data => data.count);
 
-      // Tree species chart
-      const treeSpeciesCtx = document.getElementById('treeSpeciesChart').getContext('2d');
-      const treeSpeciesChart = new Chart(treeSpeciesCtx, {
+    // Prepare data for the species chart
+    const speciesData = <?php echo json_encode($speciesData); ?>;
+    const speciesNames = speciesData.map(data => data.species_name);
+    const speciesCounts = speciesData.map(data => data.count);
+
+    // Initialize the category chart
+    const ctxCategory = document.getElementById('categoryChart').getContext('2d');
+    new Chart(ctxCategory, {
         type: 'bar',
         data: {
-          labels: speciesLabels,
-          datasets: [{
-            label: '# of Trees',
-            data: speciesCounts,
-            backgroundColor: [
-              'rgba(255, 99, 132, 0.2)',
-              'rgba(54, 162, 235, 0.2)',
-              'rgba(255, 206, 86, 0.2)',
-              'rgba(75, 192, 192, 0.2)'
-            ],
-            borderColor: [
-              'rgba(255, 99, 132, 1)',
-              'rgba(54, 162, 235, 1)',
-              'rgba(255, 206, 86, 1)',
-              'rgba(75, 192, 192, 1)'
-            ],
-            borderWidth: 1
-          }]
+            labels: categories,
+            datasets: [{
+                label: 'Tree Count by Category',
+                data: categoryCounts,
+                backgroundColor: ['#4CAF50', '#FFCE56'],
+                borderColor: ['#388E3C', '#FBC02D'],
+                borderWidth: 1
+            }]
         },
         options: {
-          scales: {
-            y: {
-              beginAtZero: true
+            scales: {
+                y: { beginAtZero: true }
             }
-          }
         }
-      });
+    });
 
-      // Extract uploads data
-      const uploadLabels = data.uploadsData.map(item => item.upload_date);
-      const uploadCounts = data.uploadsData.map(item => item.count);
-
-      // Uploads over time chart
-      const uploadsCtx = document.getElementById('uploadsChart').getContext('2d');
-      const uploadsChart = new Chart(uploadsCtx, {
-        type: 'line',
+    // Initialize the species chart
+    const ctxSpecies = document.getElementById('speciesChart').getContext('2d');
+    new Chart(ctxSpecies, {
+        type: 'bar',
         data: {
-          labels: uploadLabels,
-          datasets: [{
-            label: '# of Uploads',
-            data: uploadCounts,
-            backgroundColor: 'rgba(75, 192, 192, 0.2)',
-            borderColor: 'rgba(75, 192, 192, 1)',
-            borderWidth: 1
-          }]
+            labels: speciesNames,
+            datasets: [{
+                label: 'Tree Count by Species',
+                data: speciesCounts,
+                backgroundColor: '#42A5F5',
+                borderColor: '#1E88E5',
+                borderWidth: 1
+            }]
         },
         options: {
-          scales: {
-            y: {
-              beginAtZero: true
+            scales: {
+                y: { beginAtZero: true }
             }
-          }
         }
-      });
-    })
-    .catch(error => console.error('Error fetching data:', error));
-
+    });
 </script>
 </body>
+<script src="assets/js/core/jquery.min.js"></script>
+  <script src="assets/js/core/popper.min.js"></script>
+  <script src="assets/js/core/bootstrap.min.js"></script>
+  <script src="assets/js/plugins/perfect-scrollbar.jquery.min.js"></script>
+  <script src="assets/js/paper-dashboard.min.js?v=2.0.1" type="text/javascript"></script>
 </html>
